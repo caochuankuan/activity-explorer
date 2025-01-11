@@ -146,7 +146,7 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
     });
   }
 
-  Future<void> _launchActivity(String packageName, String activityName, bool exported) async {
+  Future<void> _launchActivity(String packageName, String activityName) async {
     try {
       await platform.invokeMethod('launchActivity', {
         'packageName': packageName,
@@ -405,7 +405,7 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
                         ),
                         trailing: const Icon(Icons.arrow_forward),
                         onTap: () {
-                          _launchActivity(packageName, activity['name'], activity['exported']);
+                          _launchActivity(packageName, activity['name']);
                         },
                       );
                     }).toList() ??
