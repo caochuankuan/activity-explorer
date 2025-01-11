@@ -78,6 +78,8 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
   int currentPage = 0;
   final int pageSize = 50;
   Set<String> expandedTiles = {};
+  String searchQuery = '';
+  bool isSearching = false;
 
   @override
   void initState() {
@@ -144,7 +146,7 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
     });
   }
 
-  Future<void> _launchActivity(String packageName, String activityName) async {
+  Future<void> _launchActivity(String packageName, String activityName, bool exported) async {
     try {
       await platform.invokeMethod('launchActivity', {
         'packageName': packageName,
@@ -159,50 +161,79 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(onPressed: () {
-          // 关于页面
-          showAboutDialog(
-            context: context,
-            applicationIcon: Image.asset("assets/app_icon.png", width: 80, height: 80),
-            applicationName: 'Activity 探索',
-            applicationVersion: '1.0.0',
-            children: [
-              GestureDetector(
-                child: Text('联系方式：酷安@于逸风'),
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: 'http://www.coolapk.com/u/852927'));
-                  // 提示信息
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已复制到剪贴板')));
+        leading: IconButton(
+          onPressed: () {
+            showAboutDialog(
+                context: context,
+                applicationIcon:
+                    Image.asset("assets/app_icon.png", width: 80, height: 80),
+                applicationName: 'Activity 探索',
+                applicationVersion: '1.0.0',
+                children: [
+                  GestureDetector(
+                    child: Text('联系方式：酷安@于逸风'),
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(
+                          text: 'http://www.coolapk.com/u/852927'));
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text('已复制到剪贴板')));
+                    },
+                  ),
+                  const Text(''),
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(
+                          text:
+                              'https://github.com/chuankuan0213/activity-explorer'));
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text('已复制到剪贴板')));
+                    },
+                    child: Text(
+                        '项目开源地址(Gitlab): https://gitlab.com/chuankuan0213/activity-explorer'),
+                  ),
+                ]);
+          },
+          icon: const Icon(Icons.info_outlined),
+        ),
+        title: isSearching
+            ? TextField(
+                onChanged: (value) {
+                  setState(() {
+                    searchQuery = value;
+                  });
                 },
-              ),
-              const Text(''),
-              GestureDetector(
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: 'https://github.com/chuankuan0213/activity-explorer'));
-                  // 提示信息
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已复制到剪贴板')));
-                },
-                child: Text('项目开源地址(Gitlab): https://gitlab.com/chuankuan0213/activity-explorer'),
-              ),
-            ]
-          );
-        }, icon: const Icon(Icons.info_outlined)),
-        title: const Text('Activity 探索'),
+                style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color),
+                decoration: InputDecoration(
+                  hintText: '请输入搜索应用',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 1.5,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.close),
+                    onPressed: () {
+                      setState(() {
+                        isSearching = false;
+                        searchQuery = '';
+                      });
+                    },
+                  ),
+                ),
+              )
+            : const Text('Activity 探索'),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: Icon(
-              widget.currentThemeMode == ThemeMode.dark
-                  ? Icons.dark_mode
-                  : Icons.light_mode,
-            ),
-            onPressed: () {
-              final newMode = widget.currentThemeMode == ThemeMode.dark
-                  ? ThemeMode.light
-                  : ThemeMode.dark;
-              widget.onThemeModeChanged(newMode);
-            },
-          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'toggleSystemApps') {
@@ -218,6 +249,16 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
                   visibleActivities.clear();
                 });
                 allActivities.keys.forEach(_filterActivities);
+              } else if (value == 'toggleThemeMode') {
+                final newMode = widget.currentThemeMode == ThemeMode.dark
+                    ? ThemeMode.light
+                    : ThemeMode.dark;
+                widget.onThemeModeChanged(newMode);
+              } else if (value == 'toggleSearch') {
+                setState(() {
+                  isSearching = !isSearching;
+                  searchQuery = '';
+                });
               }
             },
             icon: const Icon(Icons.filter_alt_outlined),
@@ -226,6 +267,19 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
             ),
             color: Theme.of(context).colorScheme.surface,
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'toggleSearch',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.search,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(isSearching ? '关闭搜索' : '搜索应用'),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'toggleSystemApps',
                 child: Row(
@@ -262,6 +316,25 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
                   ],
                 ),
               ),
+              PopupMenuItem(
+                value: 'toggleThemeMode',
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.currentThemeMode == ThemeMode.dark
+                          ? Icons.dark_mode
+                          : Icons.light_mode,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      widget.currentThemeMode == ThemeMode.dark
+                          ? '切换为浅色模式'
+                          : '切换为深色模式',
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -284,6 +357,11 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
             final app = apps[index];
             final packageName = app['packageName'];
             final isExpanded = expandedTiles.contains(packageName);
+            if (!app['appName']
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase())) {
+              return Container(); // 不显示不符合条件的应用
+            }
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               color: isExpanded
@@ -327,7 +405,7 @@ class _AppActivityExplorerState extends State<AppActivityExplorer> {
                         ),
                         trailing: const Icon(Icons.arrow_forward),
                         onTap: () {
-                          _launchActivity(packageName, activity['name']);
+                          _launchActivity(packageName, activity['name'], activity['exported']);
                         },
                       );
                     }).toList() ??
