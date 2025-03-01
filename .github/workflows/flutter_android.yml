@@ -1,0 +1,69 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for the release'
+        required: false  # 允许不设置 tag_name
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout 代码
+      - uses: actions/checkout@v4
+
+      # 2. 设置 Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.4'
+
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 4. 获取版本号并格式化为 v1.0.0
+      - name: Get version from pubspec.yaml
+        id: get_version
+        run: |
+          VERSION=$(grep -oP '(?<=version: )\S+' pubspec.yaml | sed 's/\+.*//')
+          VERSION_WITH_V="v${VERSION}"
+          echo "Version: ${VERSION_WITH_V}"
+          echo "VERSION=${VERSION_WITH_V}" >> $GITHUB_ENV
+
+      # 5. 如果没有手动设置 tag_name, 使用版本号作为 tag_name
+      - name: Set tag name
+        if: ${{ github.event.inputs.tag_name == '' }}
+        run: echo "TAG_NAME=${{ env.VERSION }}" >> $GITHUB_ENV
+
+      # 6. 构建 APK
+      - name: Build APK
+        run: flutter build apk --release --target-platform android-arm,android-arm64,android-x64
+
+      # 7. 创建 GitHub Release
+      - name: Create GitHub Release
+        id: release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || env.TAG_NAME }}
+          files: build/app/outputs/flutter-apk/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 8. 上传 APK 到 Release
+      - name: Upload APK to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-release-arm64.apk
+            build/app/outputs/flutter-apk/app-release-x86.apk
+            build/app/outputs/flutter-apk/app-release-x64.apk
